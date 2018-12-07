@@ -10,6 +10,8 @@ import (
     "log"
     "github.com/gorilla/mux"
     "github.com/go-redis/redis"
+    "strconv"
+    // "crypto/sha1"
 )
 
 
@@ -38,6 +40,10 @@ Features:
     - Display how many tickets remain (open, purchasing, purchased)
 */
 
+func generateHash(ticketNum int) string {
+    return "cf23df2207d99a74fbe169e3eba035e633b65d94"
+}
+
 
 func InitializeRedisClient() *redis.Client {
     return  redis.NewClient(&redis.Options{
@@ -49,7 +55,7 @@ func InitializeRedisClient() *redis.Client {
 // Create JSON key in Redis DB with initialized ticket count
 func InitializeTickets() {
     // Set num_tickets in Redis to INITIAL_TICKET_COUNT
-    err := GlobalRedisClient.Set("num_tickets", "value", INITIAL_TICKET_COUNT).Err()
+    err := GlobalRedisClient.Set("num_tickets", INITIAL_TICKET_COUNT, 0).Err()
 	if err != nil {
 		panic(err)
 	}
@@ -80,8 +86,30 @@ func GetRemainingTickets(w http.ResponseWriter, r *http.Request) {
 // Create lock on ticket to allow purchasing period
 func LockTicket(w http.ResponseWriter, r *http.Request) {
     fmt.Println("* LockTicket")
+
+
     if !GLOBAL_DEBUG {
         // Redis to drop ticket count
+        numTickets, err := GlobalRedisClient.Get("num_tickets").Result()
+        if err != nil {
+            panic(err)
+        }
+        intNumTickets, err2 := strconv.Atoi(numTickets)
+        if err2 != nil {
+            panic(err2)
+        }
+
+        // Add salt to create more secure hash
+        hash := generateHash(intNumTickets)
+
+        // Write hash to redis
+        err = GlobalRedisClient.Set(hash, intNumTickets, 0).Err()
+    	if err != nil {
+    		panic(err)
+    	}
+
+        w.WriteHeader(http.StatusOK)
+        fmt.Fprintf(w, `{"process": "success", "token": %s}`, hash)
     } else {
 
     }
@@ -112,7 +140,7 @@ func main() {
 
     router.HandleFunc("/remaining_tickets", GetRemainingTickets).Methods("GET")
     router.HandleFunc("/buy_ticket", LockTicket).Methods("POST")
-    router.HandleFunc("/buy_ticket/{token}", BuyTicket).Methods("POST")
+    router.HandleFunc("/buy_ticket/{token}", CompleteTicketPurchase).Methods("POST")
 
     fmt.Println("Listening on port 8000.")
     log.Fatal(http.ListenAndServe(":8000", router))
