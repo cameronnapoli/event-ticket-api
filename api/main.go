@@ -5,13 +5,12 @@ package main
 
 import (
     "fmt"
-    "github.com/go-redis/redis"
-    "github.com/gorilla/mux"
     "log"
+    "time"
+    "github.com/gorilla/mux"
     "net/http"
     "strconv"
     // "encoding/json"
-    "time"
 )
 
 /*
