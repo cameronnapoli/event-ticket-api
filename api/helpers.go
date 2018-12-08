@@ -8,7 +8,11 @@ import (
     "time"
     "fmt"
     "net/http"
-    // "crypto/sha1"
+    "encoding/json"
+    "errors"
+    "crypto/sha1"
+    "encoding/binary"
+    "encoding/hex"
 )
 
 const TICKET_GA = 0
@@ -21,21 +25,53 @@ const GLOBAL_DEBUG = true
 
 var GlobalRedisClient *redis.Client
 
+
 type TicketPaymentPayload struct {
     UserToken    string `json:"user_token"`
     TicketType   int    `json:"ticket_type"`
     PaymentToken string `json:"payment_token"`
 }
 
-func generateToken(ticketNum int) string {
-    // TOOD: implement
-    return "cf23df2207d99a74fbe169e3eba035e633b65d94"
+
+func payloadToJson(tp *TicketPaymentPayload) string {
+    s, err := json.Marshal(tp)
+    if err != nil {
+        panic(err)
+    }
+    return string(s)
 }
+
+
+func generateToken(ticketNum int) string {
+    now := time.Now().UnixNano() + ticketNum
+    byteArray := make([]byte, 8)
+    binary.LittleEndian.PutUint64(byteArray, uint64(now))
+    sum := sha1.Sum(byteArray)
+    return hex.EncodeToString(sum[:])
+}
+
+
+func CheckArgsInParams(params map[string]string, reqArgs... string) error {
+    for _, reqArg := range reqArgs {
+        if _, ok := params[reqArg]; !ok {
+            return errors.New("Argument missing from request.")
+        }
+    }
+    return nil
+}
+
 
 func WriteErrorResponse(w *http.ResponseWriter, err string) {
     (*w).WriteHeader(403)
     fmt.Fprintf(*w, `{"success": false, "errorMessage": "%s"}`, err)
 }
+
+
+func BasicSuccessResponse(w *http.ResponseWriter) {
+    (*w).WriteHeader(200)
+    fmt.Fprintf(*w, `{"success": true}`)
+}
+
 
 func InitializeRedisClient() *redis.Client {
     return redis.NewClient(&redis.Options{

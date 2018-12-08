@@ -10,7 +10,7 @@ import (
     "github.com/gorilla/mux"
     "net/http"
     "strconv"
-    // "encoding/json"
+    "strings"
 )
 
 /*
@@ -22,6 +22,7 @@ Features:
     - Display how many tickets remain (open, purchasing, purchased)
 */
 
+
 // Create JSON key in Redis DB with initialized ticket count
 func InitializeTickets() {
     // Set num_tickets in Redis to INITIAL_TICKET_COUNT
@@ -30,6 +31,7 @@ func InitializeTickets() {
         panic(err)
     }
 }
+
 
 // Return the remaining ticket count in JSON form
 func GetRemainingTickets(w http.ResponseWriter, r *http.Request) {
@@ -51,24 +53,19 @@ func GetRemainingTickets(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintf(w, `{"num_tickets": %s}`, val)
 }
 
+
 // Create lock on ticket to allow purchasing period
 func LockTicket(w http.ResponseWriter, r *http.Request) {
     fmt.Println("* LockTicket")
 
     params := mux.Vars(r) // map[string]string
 
-    var ticketType int
-
-    if val, ok := params["ticket_type"]; ok {
-        iVal, err := strconv.Atoi(val)
-        if err != nil {
-            WriteErrorResponse(&w, err.Error())
-        }
-        ticketType = iVal
-
-    } else {
-        WriteErrorResponse(&w, "ticket_type not found in parameters")
+    argsErr := CheckArgsInParams(params, "ticketType")
+    if argsErr != nil {
+        WriteErrorResponse(&w, "parameters not all found")
     }
+
+    ticketType, _ := params["ticketType"]
 
     if !GLOBAL_DEBUG {
         // Redis to drop ticket count
@@ -90,12 +87,6 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
         // Add salt to create more secure hash
         token := generateToken(intNumTickets)
 
-        // Write hash to redis with value being the lock
-        err3 := GlobalRedisClient.SAdd("token_set", token, 0).Err()
-        if err3 != nil {
-            panic(err3)
-        }
-
         // Write ticket type to Redis as well
         err4 := GlobalRedisClient.Set(token, ticketType, 0).Err()
         if err4 != nil {
@@ -103,11 +94,10 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
         }
 
         // Decrement number of tickets
-        result, err5 := GlobalRedisClient.Decr("num_tickets").Result()
+        _, err5 := GlobalRedisClient.Decr("num_tickets").Result()
         if err5 != nil {
             panic(err5)
         }
-        fmt.Println(result)
 
         w.WriteHeader(http.StatusOK)
         fmt.Fprintf(w, `{"process": "success", "token": %s}`, token)
@@ -122,32 +112,70 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
         }()
     } else {
         w.WriteHeader(http.StatusOK)
-        fmt.Fprintf(w, `{"process": "success", "token": %s}`, generateToken(0))
+        fmt.Fprintf(w, `{"success": true, "token": %s}`, generateToken(0))
     }
 }
 
+
+// Endpoint function to finalize ticket purchase
 func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
     fmt.Println("* CompleteTicketPurchase")
 
-    // If lock is still valid, finish ticket purchase
+    params := mux.Vars(r) // map[string]string
+    argsErr := CheckArgsInParams(params, "token", "paymentToken")
+    if argsErr != nil {
+        WriteErrorResponse(&w, "parameters not all found")
+    }
 
-    // get token from r
+    token, _ := params["token"]
+    paymentToken, _ := params["paymentToken"]
 
     // see if r.token exists in Redis
+    ticketType, err := GlobalRedisClient.Get(token).Result()
+    if err != nil {
+        WriteErrorResponse(&w, strings.Join([]string{"token '", token, "' not found in RedisDB."}, ""))
+        return
+    }
 
+    ticketTypeVal, err2 := strconv.Atoi(ticketType)
+    if err2 != nil {
+        panic(err2)
+    }
+
+    tp := &TicketPaymentPayload{UserToken: token,
+                                TicketType: ticketTypeVal,
+                                PaymentToken: paymentToken}
     // if it does add to second completed purchases table with token, ticketType
+    err3 := GlobalRedisClient.SAdd("purchases", payloadToJson(tp), 0).Err()
+    if err3 != nil {
+        panic(err3)
+    }
 
+    ReleaseTicket(token)
+
+    BasicSuccessResponse(&w)
 }
+
 
 // Release lock on ticket
 func ReleaseTicket(token string) {
     fmt.Println("* ReleasingTicket")
 
     // see if token exists in Redis set
+    _, err := GlobalRedisClient.Get(token).Result()
+    if err != nil {
+        fmt.Printf("Token '%s' doesn't exist in RedisDB.", token)
+        return;
+    }
 
     // Remove token from purchase pool if it does
-
+    _, err2 := GlobalRedisClient.Del(token).Result()
+    if err2 != nil {
+        fmt.Printf("Token delete failed for '%s'.", token)
+        return;
+    }
 }
+
 
 func main() {
     if !GLOBAL_DEBUG {
@@ -163,10 +191,4 @@ func main() {
 
     fmt.Println("Listening on port 8000.")
     log.Fatal(http.ListenAndServe(":8000", router))
-
-    // tr := &TicketResponse{UserToken: "0f8238n2fn803f2", TicketType: TICKET_GA, PaymentToken: "82748719712"}
-    // b, err := json.Marshal(tr)
-    // if err != nil {
-    //     fmt.Println(err); return
-    // } fmt.Println(string(b))
 }
