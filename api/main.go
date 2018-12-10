@@ -85,7 +85,7 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
         }
 
         // Add salt to create more secure hash
-        token := generateToken(intNumTickets)
+        token := generateToken()
 
         // Write ticket type to Redis as well
         err4 := GlobalRedisClient.Set(token, ticketType, 0).Err()
@@ -112,7 +112,7 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
         }()
     } else {
         w.WriteHeader(http.StatusOK)
-        fmt.Fprintf(w, `{"success": true, "token": %s}`, generateToken(0))
+        fmt.Fprintf(w, `{"success": true, "token": %s}`, generateToken())
     }
 }
 
@@ -152,7 +152,6 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
     }
 
     ReleaseTicket(token)
-
     BasicSuccessResponse(&w)
 }
 
@@ -161,7 +160,7 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
 func ReleaseTicket(token string) {
     fmt.Println("* ReleasingTicket")
 
-    // see if token exists in Redis set
+    // see if token exists in Redis
     _, err := GlobalRedisClient.Get(token).Result()
     if err != nil {
         fmt.Printf("Token '%s' doesn't exist in RedisDB.", token)
@@ -180,6 +179,7 @@ func ReleaseTicket(token string) {
 func main() {
     if !GLOBAL_DEBUG {
         GlobalRedisClient = InitializeRedisClient()
+        ResetDB(GlobalRedisClient)
         InitializeTickets()
     }
 

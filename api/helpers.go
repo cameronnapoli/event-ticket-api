@@ -19,12 +19,14 @@ const TICKET_GA = 0
 const TICKET_VIP = 1
 const TICKET_ONE_DAY = 2
 const LOCK_TIME = time.Second * 5 // 5 minute lock time in seconds
-const INITIAL_TICKET_COUNT = 1000
+const INITIAL_TICKET_COUNT = 100000
 
 const GLOBAL_DEBUG = true
 
 var GlobalRedisClient *redis.Client
 
+var BaseTimestamp int64 = time.Now().UnixNano() / 1000 // Random seed value
+var TokenTicker int64 = 0
 
 type TicketPaymentPayload struct {
     UserToken    string `json:"user_token"`
@@ -42,10 +44,12 @@ func payloadToJson(tp *TicketPaymentPayload) string {
 }
 
 
-func generateToken(ticketNum int) string {
-    now := time.Now().UnixNano() + ticketNum
+func generateToken() string {
+    genToken := BaseTimestamp + TokenTicker
+    TokenTicker++
+    // Generate hash from timestamp
     byteArray := make([]byte, 8)
-    binary.LittleEndian.PutUint64(byteArray, uint64(now))
+    binary.LittleEndian.PutUint64(byteArray, uint64(genToken))
     sum := sha1.Sum(byteArray)
     return hex.EncodeToString(sum[:])
 }
@@ -77,4 +81,13 @@ func InitializeRedisClient() *redis.Client {
     return redis.NewClient(&redis.Options{
         Addr: "redis:6379", Password: "", DB: 0,
     })
+}
+
+
+func ResetDB(client *redis.Client)  {
+    _, err := client.FlushAll().Result()
+    if err != nil {
+        fmt.Println("* Failed to flush Redis DB")
+        panic(err)
+    }
 }
