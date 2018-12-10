@@ -26,7 +26,8 @@ Features:
 // Create JSON key in Redis DB with initialized ticket count
 func InitializeTickets() {
     // Set num_tickets in Redis to INITIAL_TICKET_COUNT
-    err := GlobalRedisClient.Set("num_tickets", INITIAL_TICKET_COUNT, 0).Err()
+    client := GetRedisClient()
+    err := client.Set("num_tickets", INITIAL_TICKET_COUNT, 0).Err()
     if err != nil {
         panic(err)
     }
@@ -36,11 +37,11 @@ func InitializeTickets() {
 // Return the remaining ticket count in JSON form
 func GetRemainingTickets(w http.ResponseWriter, r *http.Request) {
     fmt.Println("* GetRemainingTickets")
-
+    client := GetRedisClient()
     var val string
 
     if !GLOBAL_DEBUG {
-        tmp_val, err := GlobalRedisClient.Get("num_tickets").Result()
+        tmp_val, err := client.Get("num_tickets").Result()
         if err != nil {
             panic(err)
         }
@@ -57,7 +58,7 @@ func GetRemainingTickets(w http.ResponseWriter, r *http.Request) {
 // Create lock on ticket to allow purchasing period
 func LockTicket(w http.ResponseWriter, r *http.Request) {
     fmt.Println("* LockTicket")
-
+    client := GetRedisClient()
     params := mux.Vars(r) // map[string]string
 
     argsErr := CheckArgsInParams(params, "ticketType")
@@ -69,7 +70,7 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
 
     if !GLOBAL_DEBUG {
         // Redis to drop ticket count
-        numTickets, err := GlobalRedisClient.Get("num_tickets").Result()
+        numTickets, err := client.Get("num_tickets").Result()
         if err != nil {
             panic(err)
         }
@@ -88,13 +89,13 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
         token := generateToken()
 
         // Write ticket type to Redis as well
-        err4 := GlobalRedisClient.Set(token, ticketType, 0).Err()
+        err4 := client.Set(token, ticketType, 0).Err()
         if err4 != nil {
             panic(err4)
         }
 
         // Decrement number of tickets
-        _, err5 := GlobalRedisClient.Decr("num_tickets").Result()
+        _, err5 := client.Decr("num_tickets").Result()
         if err5 != nil {
             panic(err5)
         }
@@ -120,6 +121,7 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
 // Endpoint function to finalize ticket purchase
 func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
     fmt.Println("* CompleteTicketPurchase")
+    client := GetRedisClient()
 
     params := mux.Vars(r) // map[string]string
     argsErr := CheckArgsInParams(params, "token", "paymentToken")
@@ -131,7 +133,7 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
     paymentToken, _ := params["paymentToken"]
 
     // see if r.token exists in Redis
-    ticketType, err := GlobalRedisClient.Get(token).Result()
+    ticketType, err := client.Get(token).Result()
     if err != nil {
         WriteErrorResponse(&w, strings.Join([]string{"token '", token, "' not found in RedisDB."}, ""))
         return
@@ -146,7 +148,7 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
                                 TicketType: ticketTypeVal,
                                 PaymentToken: paymentToken}
     // if it does add to second completed purchases table with token, ticketType
-    err3 := GlobalRedisClient.SAdd("purchases", payloadToJson(tp), 0).Err()
+    err3 := client.SAdd("purchases", payloadToJson(tp), 0).Err()
     if err3 != nil {
         panic(err3)
     }
@@ -159,16 +161,17 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
 // Release lock on ticket
 func ReleaseTicket(token string) {
     fmt.Println("* ReleasingTicket")
+    client := GetRedisClient()
 
     // see if token exists in Redis
-    _, err := GlobalRedisClient.Get(token).Result()
+    _, err := client.Get(token).Result()
     if err != nil {
         fmt.Printf("Token '%s' doesn't exist in RedisDB.", token)
         return;
     }
 
     // Remove token from purchase pool if it does
-    _, err2 := GlobalRedisClient.Del(token).Result()
+    _, err2 := client.Del(token).Result()
     if err2 != nil {
         fmt.Printf("Token delete failed for '%s'.", token)
         return;
@@ -178,8 +181,7 @@ func ReleaseTicket(token string) {
 
 func main() {
     if !GLOBAL_DEBUG {
-        GlobalRedisClient = InitializeRedisClient()
-        ResetDB(GlobalRedisClient)
+        ResetDB()
         InitializeTickets()
     }
 

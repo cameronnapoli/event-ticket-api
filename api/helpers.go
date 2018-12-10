@@ -15,6 +15,10 @@ import (
     "encoding/hex"
 )
 
+
+//=============================================
+//================ GLOBAL VARS ================
+//=============================================
 const TICKET_GA = 0
 const TICKET_VIP = 1
 const TICKET_ONE_DAY = 2
@@ -23,7 +27,7 @@ const INITIAL_TICKET_COUNT = 100000
 
 const GLOBAL_DEBUG = true
 
-var GlobalRedisClient *redis.Client
+var GlobalRedisClient *redis.Client = nil
 
 var BaseTimestamp int64 = time.Now().UnixNano() / 1000 // Random seed value
 var TokenTicker int64 = 0
@@ -35,6 +39,9 @@ type TicketPaymentPayload struct {
 }
 
 
+//=========================================
+//================ HELPERS ================
+//=========================================
 func payloadToJson(tp *TicketPaymentPayload) string {
     s, err := json.Marshal(tp)
     if err != nil {
@@ -65,6 +72,9 @@ func CheckArgsInParams(params map[string]string, reqArgs... string) error {
 }
 
 
+//=========================================
+//================ ROUTING ================
+//=========================================
 func WriteErrorResponse(w *http.ResponseWriter, err string) {
     (*w).WriteHeader(403)
     fmt.Fprintf(*w, `{"success": false, "errorMessage": "%s"}`, err)
@@ -77,14 +87,21 @@ func BasicSuccessResponse(w *http.ResponseWriter) {
 }
 
 
-func InitializeRedisClient() *redis.Client {
-    return redis.NewClient(&redis.Options{
-        Addr: "redis:6379", Password: "", DB: 0,
-    })
+//=======================================
+//================ REDIS ================
+//=======================================
+func GetRedisClient() *redis.Client {
+    if GlobalRedisClient == nil {
+        GlobalRedisClient = redis.NewClient(&redis.Options{
+            Addr: "redis:6379", Password: "", DB: 0,
+        })
+    }
+    return GlobalRedisClient
 }
 
 
-func ResetDB(client *redis.Client)  {
+func ResetDB()  {
+    client := GetRedisClient()
     _, err := client.FlushAll().Result()
     if err != nil {
         fmt.Println("* Failed to flush Redis DB")
