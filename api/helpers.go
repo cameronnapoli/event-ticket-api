@@ -29,7 +29,7 @@ const GLOBAL_DEBUG = true
 
 var GlobalRedisClient *redis.Client = nil
 
-var BaseTimestamp int64 = time.Now().UnixNano() / 1000 // Random seed value
+var BaseTimestamp int64 = time.Now().UnixNano() / 129842 // Random seed value (divide by random number)
 var TokenTicker int64 = 0
 
 type TicketPaymentPayload struct {
