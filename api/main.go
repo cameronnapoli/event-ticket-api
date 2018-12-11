@@ -38,16 +38,10 @@ func InitializeTickets() {
 func GetRemainingTickets(w http.ResponseWriter, r *http.Request) {
     fmt.Println("* GetRemainingTickets")
     client := GetRedisClient()
-    var val string
 
-    if !GLOBAL_DEBUG {
-        tmp_val, err := client.Get("num_tickets").Result()
-        if err != nil {
-            panic(err)
-        }
-        val = tmp_val
-    } else {
-        val = "200"
+    val, err := client.Get("num_tickets").Result()
+    if err != nil {
+        panic(err)
     }
 
     w.WriteHeader(http.StatusOK)
@@ -61,60 +55,63 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
     client := GetRedisClient()
     params := mux.Vars(r) // map[string]string
 
-    argsErr := CheckArgsInParams(params, "ticketType")
+    argsErr := CheckArgsInParams(params, "type")
     if argsErr != nil {
         WriteErrorResponse(&w, "parameters not all found")
+        return
     }
 
-    ticketType, _ := params["ticketType"]
-
-    if !GLOBAL_DEBUG {
-        // Redis to drop ticket count
-        numTickets, err := client.Get("num_tickets").Result()
-        if err != nil {
-            panic(err)
-        }
-        intNumTickets, err2 := strconv.Atoi(numTickets)
-        if err2 != nil {
-            panic(err2)
-        }
-
-        if intNumTickets == 0 {
-            WriteErrorResponse(&w, "No tickets remaining.")
-        } else if intNumTickets < 0 {
-            panic("number of tickets in redis < 0. Something went very wrong.")
-        }
-
-        // Add salt to create more secure hash
-        token := generateToken()
-
-        // Write ticket type to Redis as well
-        err4 := client.Set(token, ticketType, 0).Err()
-        if err4 != nil {
-            panic(err4)
-        }
-
-        // Decrement number of tickets
-        _, err5 := client.Decr("num_tickets").Result()
-        if err5 != nil {
-            panic(err5)
-        }
-
-        w.WriteHeader(http.StatusOK)
-        fmt.Fprintf(w, `{"process": "success", "token": %s}`, token)
-
-        // Create callback to ReleaseTicket(token)
-        // TODO: make sure this is a nonblocking action
-        doneChan := make(chan bool)
-        go func() {
-            time.Sleep(LOCK_TIME)
-            ReleaseTicket(token)
-            doneChan <- true
-        }()
-    } else {
-        w.WriteHeader(http.StatusOK)
-        fmt.Fprintf(w, `{"success": true, "token": %s}`, generateToken())
+    ticketType, _ := params["type"]
+    tVal := CheckTicketType(ticketType)
+    if tVal < 0 {
+        WriteErrorResponse(&w, "ticket type is invalid.")
+        return
     }
+
+    // Redis to drop ticket count
+    numTickets, err := client.Get("num_tickets").Result()
+    if err != nil {
+        panic(err)
+    }
+    intNumTickets, err2 := strconv.Atoi(numTickets)
+    if err2 != nil {
+        panic(err2)
+    }
+
+    if intNumTickets == 0 {
+        WriteErrorResponse(&w, "No tickets remaining.")
+        return
+    } else if intNumTickets < 0 {
+        panic("number of tickets in redis < 0. Something went very wrong.")
+    }
+
+    // Add salt to create more secure hash
+    token := generateToken()
+
+    // Write ticket type to Redis as well
+    err4 := client.Set(token, tVal, 0).Err()
+    if err4 != nil {
+        panic(err4)
+    }
+
+    // Decrement number of tickets
+    _, err5 := client.Decr("num_tickets").Result()
+    if err5 != nil {
+        panic(err5)
+    }
+
+    w.WriteHeader(http.StatusOK)
+    fmt.Fprintf(w, `{"process": "success", "token": %s}`, token)
+
+    // Create callback to ReleaseTicket(token)
+    // TODO: make sure this is a nonblocking action
+    doneChan := make(chan bool)
+    go func() {
+        time.Sleep(LOCK_TIME)
+        // Add logic not to release if, complete ticket purchase made
+        ReleaseTicket(token, true)
+        doneChan <- true
+    }()
 }
 
 
@@ -124,13 +121,14 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
     client := GetRedisClient()
 
     params := mux.Vars(r) // map[string]string
-    argsErr := CheckArgsInParams(params, "token", "paymentToken")
+    argsErr := CheckArgsInParams(params, "token") //, "paymentToken")
     if argsErr != nil {
         WriteErrorResponse(&w, "parameters not all found")
+        return
     }
 
     token, _ := params["token"]
-    paymentToken, _ := params["paymentToken"]
+    // paymentToken, _ := params["paymentToken"]
 
     // see if r.token exists in Redis
     ticketType, err := client.Get(token).Result()
@@ -146,27 +144,27 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
 
     tp := &TicketPaymentPayload{UserToken: token,
                                 TicketType: ticketTypeVal,
-                                PaymentToken: paymentToken}
+                                PaymentToken: ""} // PaymentToken: paymentToken}
     // if it does add to second completed purchases table with token, ticketType
     err3 := client.SAdd("purchases", payloadToJson(tp), 0).Err()
     if err3 != nil {
         panic(err3)
     }
 
-    ReleaseTicket(token)
+    ReleaseTicket(token, false)
     BasicSuccessResponse(&w)
 }
 
 
 // Release lock on ticket
-func ReleaseTicket(token string) {
+func ReleaseTicket(token string, incr bool) {
     fmt.Println("* ReleasingTicket")
     client := GetRedisClient()
 
     // see if token exists in Redis
     _, err := client.Get(token).Result()
     if err != nil {
-        fmt.Printf("Token '%s' doesn't exist in RedisDB.", token)
+        fmt.Printf("Token '%s' doesn't exist in Redis.\n", token)
         return;
     }
 
@@ -176,20 +174,25 @@ func ReleaseTicket(token string) {
         fmt.Printf("Token delete failed for '%s'.", token)
         return;
     }
+
+    if (incr) {
+        _, err3 := client.Incr("num_tickets").Result()
+        if err3 != nil {
+            panic(err3)
+        }
+    }
 }
 
 
 func main() {
-    if !GLOBAL_DEBUG {
-        ResetDB()
-        InitializeTickets()
-    }
+    ResetDB()
+    InitializeTickets()
 
     router := mux.NewRouter()
 
     router.HandleFunc("/remaining_tickets", GetRemainingTickets).Methods("GET")
-    router.HandleFunc("/buy_ticket", LockTicket).Methods("POST")
-    router.HandleFunc("/buy_ticket/{token}", CompleteTicketPurchase).Methods("POST")
+    router.HandleFunc("/buy_ticket/{type}", LockTicket).Methods("POST")
+    router.HandleFunc("/complete_purchase/{token}", CompleteTicketPurchase).Methods("POST")
 
     fmt.Println("Listening on port 8000.")
     log.Fatal(http.ListenAndServe(":8000", router))

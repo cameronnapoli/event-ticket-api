@@ -19,13 +19,11 @@ import (
 //=============================================
 //================ GLOBAL VARS ================
 //=============================================
-const TICKET_GA = 0
-const TICKET_VIP = 1
-const TICKET_ONE_DAY = 2
-const LOCK_TIME = time.Second * 5 // 5 minute lock time in seconds
+const TICKET_GA = "GA"
+const TICKET_VIP = "VIP"
+const TICKET_ONE_DAY = "ONE_DAY"
+const LOCK_TIME = time.Second * 5 * 1 // 1 minute lock time in seconds
 const INITIAL_TICKET_COUNT = 100000
-
-const GLOBAL_DEBUG = true
 
 var GlobalRedisClient *redis.Client = nil
 
@@ -72,6 +70,20 @@ func CheckArgsInParams(params map[string]string, reqArgs... string) error {
 }
 
 
+func CheckTicketType(ticketType string) int {
+    switch ticketType {
+        case TICKET_GA:
+            return 0
+        case TICKET_VIP:
+            return 1
+        case TICKET_ONE_DAY:
+            return 2
+        default:
+            return -1
+    }
+}
+
+
 //=========================================
 //================ ROUTING ================
 //=========================================
@@ -93,7 +105,7 @@ func BasicSuccessResponse(w *http.ResponseWriter) {
 func GetRedisClient() *redis.Client {
     if GlobalRedisClient == nil {
         GlobalRedisClient = redis.NewClient(&redis.Options{
-            Addr: "redis:6379", Password: "", DB: 0,
+            Addr: "localhost:6379", Password: "", DB: 0,
         })
     }
     return GlobalRedisClient
