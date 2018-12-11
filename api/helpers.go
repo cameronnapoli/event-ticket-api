@@ -5,6 +5,7 @@ package main
 
 import (
     "github.com/go-redis/redis"
+    "bytes"
     "time"
     "fmt"
     "net/http"
@@ -46,6 +47,15 @@ func payloadToJson(tp *TicketPaymentPayload) string {
         panic(err)
     }
     return string(s)
+}
+
+
+func concatStrings(strs... string) string {
+    var b bytes.Buffer
+    for _, s := range strs {
+        b.WriteString(s)
+    }
+    return b.String()
 }
 
 

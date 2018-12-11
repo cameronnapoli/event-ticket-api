@@ -10,7 +10,7 @@ import (
     "github.com/gorilla/mux"
     "net/http"
     "strconv"
-    "strings"
+    // "strings"
 )
 
 /*
@@ -117,6 +117,9 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
 
 // Endpoint function to finalize ticket purchase
 func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
+    // NOTE: in a real platform, there would be a step here to process a payment
+    //   authentication for the type of ticket the user purchased.
+
     fmt.Println("* CompleteTicketPurchase")
     client := GetRedisClient()
 
@@ -133,7 +136,7 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
     // see if r.token exists in Redis
     ticketType, err := client.Get(token).Result()
     if err != nil {
-        WriteErrorResponse(&w, strings.Join([]string{"token '", token, "' not found in RedisDB."}, ""))
+        WriteErrorResponse(&w, concatStrings("token '", token, "' not found in RedisDB."))
         return
     }
 
