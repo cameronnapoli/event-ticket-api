@@ -23,3 +23,39 @@ Begin purchase of a ticket. Type can be on the strings: `GA`, `VIP`, or `ONE_DAY
 Complete purchase of a ticket. Token is the token received from the /buy_ticket endpoint.
 
     /complete_purchase/{token}
+
+
+## Benchmarks
+
+Tested with [go-wrk](https://github.com/tsliwowicz/go-wrk)
+
+### /remaining_tickets 30 second test
+
+Command to test
+> go-wrk -c 10 -d 30 http://localhost:8000/remaining_tickets > remtick_30_1.txt
+
+
+    Running 30s test @ http://localhost:8000/remaining_tickets
+      10 goroutine(s) running concurrently
+    60750 requests in 29.684248229s, 7.13MB read
+    Requests/sec:		2046.54
+    Transfer/sec:		245.82KB
+    Avg Req Time:		4.886296ms
+    Fastest Request:	244.287µs
+    Slowest Request:	148.034965ms
+    Number of Errors:	0
+
+### /buy_ticket/{type} 30 second test
+
+Command to test
+> go-wrk -c 10 -d 30 -M POST http://localhost:8000/buy_ticket/GA > buyticket_30_1.txt
+
+    Running 30s test @ http://localhost:8000/buy_ticket/GA
+      10 goroutine(s) running concurrently
+    21125 requests in 29.882631624s, 3.49MB read
+    Requests/sec:		706.93
+    Transfer/sec:		119.43KB
+    Avg Req Time:		14.145624ms
+    Fastest Request:	498.636µs
+    Slowest Request:	226.50454ms
+    Number of Errors:	0

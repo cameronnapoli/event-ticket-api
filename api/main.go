@@ -36,7 +36,7 @@ func InitializeTickets() {
 
 // Return the remaining ticket count in JSON form
 func GetRemainingTickets(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("* GetRemainingTickets")
+    //fmt.Println("* GetRemainingTickets")
     client := GetRedisClient()
 
     val, err := client.Get("num_tickets").Result()
@@ -51,7 +51,7 @@ func GetRemainingTickets(w http.ResponseWriter, r *http.Request) {
 
 // Create lock on ticket to allow purchasing period
 func LockTicket(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("* LockTicket")
+    //fmt.Println("* LockTicket")
     client := GetRedisClient()
     params := mux.Vars(r) // map[string]string
 
@@ -103,12 +103,10 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusOK)
     fmt.Fprintf(w, `{"process": "success", "token": %s}`, token)
 
-    // Create callback to ReleaseTicket(token)
     // TODO: make sure this is a nonblocking action
     doneChan := make(chan bool)
     go func() {
         time.Sleep(LOCK_TIME)
-        // Add logic not to release if, complete ticket purchase made
         ReleaseTicket(token, true)
         doneChan <- true
     }()
@@ -120,7 +118,7 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
     // NOTE: in a real platform, there would be a step here to process a payment
     //   authentication for the type of ticket the user purchased.
 
-    fmt.Println("* CompleteTicketPurchase")
+    //fmt.Println("* CompleteTicketPurchase")
     client := GetRedisClient()
 
     params := mux.Vars(r) // map[string]string
@@ -161,7 +159,7 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
 
 // Release lock on ticket
 func ReleaseTicket(token string, incr bool) {
-    fmt.Println("* ReleasingTicket")
+    //fmt.Println("* ReleasingTicket")
     client := GetRedisClient()
 
     // see if token exists in Redis

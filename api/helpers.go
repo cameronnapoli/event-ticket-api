@@ -23,7 +23,7 @@ import (
 const TICKET_GA = "GA"
 const TICKET_VIP = "VIP"
 const TICKET_ONE_DAY = "ONE_DAY"
-const LOCK_TIME = time.Second * 5 * 1 // 1 minute lock time in seconds
+const LOCK_TIME = time.Second * 30 * 1 // 1 minute lock time in seconds
 const INITIAL_TICKET_COUNT = 100000
 
 var GlobalRedisClient *redis.Client = nil
