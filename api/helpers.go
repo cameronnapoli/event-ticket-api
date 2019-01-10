@@ -4,31 +4,23 @@
 package main
 
 import (
-    "github.com/go-redis/redis"
     "bytes"
-    "time"
-    "fmt"
-    "net/http"
-    "encoding/json"
-    "errors"
     "crypto/sha1"
     "encoding/binary"
     "encoding/hex"
+    "encoding/json"
+    "errors"
+    "time"
 )
 
-
-//=============================================
 //================ GLOBAL VARS ================
-//=============================================
 const TICKET_GA = "GA"
 const TICKET_VIP = "VIP"
 const TICKET_ONE_DAY = "ONE_DAY"
-const LOCK_TIME = time.Second * 30 * 1 // 1 minute lock time in seconds
-const INITIAL_TICKET_COUNT = 100000
+const LOCK_TIME = time.Second * 30 * 1 // 30 second lock time
+const INITIAL_TICKET_COUNT = 50000
 
-var GlobalRedisClient *redis.Client = nil
-
-var BaseTimestamp int64 = time.Now().UnixNano() / 129842 // Random seed value (divide by random number)
+var BaseTimestamp int64 = time.Now().UnixNano() / 100000 // Random seed value
 var TokenTicker int64 = 0
 
 type TicketPaymentPayload struct {
@@ -37,10 +29,7 @@ type TicketPaymentPayload struct {
     PaymentToken string `json:"payment_token"`
 }
 
-
-//=========================================
 //================ HELPERS ================
-//=========================================
 func payloadToJson(tp *TicketPaymentPayload) string {
     s, err := json.Marshal(tp)
     if err != nil {
@@ -49,7 +38,6 @@ func payloadToJson(tp *TicketPaymentPayload) string {
     return string(s)
 }
 
-
 func concatStrings(strs... string) string {
     var b bytes.Buffer
     for _, s := range strs {
@@ -57,7 +45,6 @@ func concatStrings(strs... string) string {
     }
     return b.String()
 }
-
 
 func generateToken() string {
     genToken := BaseTimestamp + TokenTicker
@@ -69,7 +56,6 @@ func generateToken() string {
     return hex.EncodeToString(sum[:])
 }
 
-
 func CheckArgsInParams(params map[string]string, reqArgs... string) error {
     for _, reqArg := range reqArgs {
         if _, ok := params[reqArg]; !ok {
@@ -78,7 +64,6 @@ func CheckArgsInParams(params map[string]string, reqArgs... string) error {
     }
     return nil
 }
-
 
 func CheckTicketType(ticketType string) int {
     switch ticketType {
@@ -90,43 +75,5 @@ func CheckTicketType(ticketType string) int {
             return 2
         default:
             return -1
-    }
-}
-
-
-//=========================================
-//================ ROUTING ================
-//=========================================
-func WriteErrorResponse(w *http.ResponseWriter, err string) {
-    (*w).WriteHeader(403)
-    fmt.Fprintf(*w, `{"success": false, "errorMessage": "%s"}`, err)
-}
-
-
-func BasicSuccessResponse(w *http.ResponseWriter) {
-    (*w).WriteHeader(200)
-    fmt.Fprintf(*w, `{"success": true}`)
-}
-
-
-//=======================================
-//================ REDIS ================
-//=======================================
-func GetRedisClient() *redis.Client {
-    if GlobalRedisClient == nil {
-        GlobalRedisClient = redis.NewClient(&redis.Options{
-            Addr: "localhost:6379", Password: "", DB: 0,
-        })
-    }
-    return GlobalRedisClient
-}
-
-
-func ResetDB()  {
-    client := GetRedisClient()
-    _, err := client.FlushAll().Result()
-    if err != nil {
-        fmt.Println("* Failed to flush Redis DB")
-        panic(err)
     }
 }

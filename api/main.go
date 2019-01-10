@@ -5,16 +5,15 @@ package main
 
 import (
     "fmt"
-    "log"
-    "time"
     "github.com/gorilla/mux"
+    "log"
     "net/http"
     "strconv"
-    // "strings"
+    "time"
 )
 
 /*
-Build a go application that can handle high volume festival ticket purchases
+Go application that can handle high volume festival ticket purchases
 ----------------------------------------------------------------------------
 Features:
     - Lock ticket purchase in for user on IP (Max number of users per IP)
@@ -22,36 +21,29 @@ Features:
     - Display how many tickets remain (open, purchasing, purchased)
 */
 
-
 // Create JSON key in Redis DB with initialized ticket count
 func InitializeTickets() {
     // Set num_tickets in Redis to INITIAL_TICKET_COUNT
     client := GetRedisClient()
     err := client.Set("num_tickets", INITIAL_TICKET_COUNT, 0).Err()
     if err != nil {
-        panic(err)
+        log.Fatal(err)
     }
 }
 
-
 // Return the remaining ticket count in JSON form
 func GetRemainingTickets(w http.ResponseWriter, r *http.Request) {
-    //fmt.Println("* GetRemainingTickets")
     client := GetRedisClient()
 
     val, err := client.Get("num_tickets").Result()
-    if err != nil {
-        panic(err)
-    }
+    if err != nil { log.Fatal(err) }
 
     w.WriteHeader(http.StatusOK)
     fmt.Fprintf(w, `{"num_tickets": %s}`, val)
 }
 
-
 // Create lock on ticket to allow purchasing period
 func LockTicket(w http.ResponseWriter, r *http.Request) {
-    //fmt.Println("* LockTicket")
     client := GetRedisClient()
     params := mux.Vars(r) // map[string]string
 
@@ -68,42 +60,33 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Redis to drop ticket count
+    // Redis query to get ticket count
     numTickets, err := client.Get("num_tickets").Result()
-    if err != nil {
-        panic(err)
-    }
-    intNumTickets, err2 := strconv.Atoi(numTickets)
-    if err2 != nil {
-        panic(err2)
-    }
+    if err != nil { log.Fatal(err) }
+
+    var intNumTickets int
+    intNumTickets, err = strconv.Atoi(numTickets)
+    if err != nil { log.Fatal(err) }
 
     if intNumTickets == 0 {
         WriteErrorResponse(&w, "No tickets remaining.")
         return
     } else if intNumTickets < 0 {
-        panic("number of tickets in redis < 0. Something went very wrong.")
+        log.Fatal("number of tickets in redis < 0. Something went very wrong.")
     }
 
-    // Add salt to create more secure hash
+    // Store token in Redis
     token := generateToken()
-
-    // Write ticket type to Redis as well
-    err4 := client.Set(token, tVal, 0).Err()
-    if err4 != nil {
-        panic(err4)
-    }
+    err = client.Set(token, tVal, 0).Err()
+    if err != nil { log.Fatal(err) }
 
     // Decrement number of tickets
-    _, err5 := client.Decr("num_tickets").Result()
-    if err5 != nil {
-        panic(err5)
-    }
+    _, err = client.Decr("num_tickets").Result()
+    if err != nil { log.Fatal(err) }
 
     w.WriteHeader(http.StatusOK)
     fmt.Fprintf(w, `{"process": "success", "token": %s}`, token)
 
-    // TODO: make sure this is a nonblocking action
     doneChan := make(chan bool)
     go func() {
         time.Sleep(LOCK_TIME)
@@ -112,13 +95,10 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
     }()
 }
 
-
 // Endpoint function to finalize ticket purchase
 func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
     // NOTE: in a real platform, there would be a step here to process a payment
     //   authentication for the type of ticket the user purchased.
-
-    //fmt.Println("* CompleteTicketPurchase")
     client := GetRedisClient()
 
     params := mux.Vars(r) // map[string]string
@@ -138,28 +118,23 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    ticketTypeVal, err2 := strconv.Atoi(ticketType)
-    if err2 != nil {
-        panic(err2)
-    }
+    var ticketTypeVal int
+    ticketTypeVal, err = strconv.Atoi(ticketType)
+    if err != nil { log.Fatal(err) }
 
     tp := &TicketPaymentPayload{UserToken: token,
                                 TicketType: ticketTypeVal,
                                 PaymentToken: ""} // PaymentToken: paymentToken}
     // if it does add to second completed purchases table with token, ticketType
-    err3 := client.SAdd("purchases", payloadToJson(tp), 0).Err()
-    if err3 != nil {
-        panic(err3)
-    }
+    err = client.SAdd("purchases", payloadToJson(tp), 0).Err()
+    if err != nil { log.Fatal(err) }
 
     ReleaseTicket(token, false)
     BasicSuccessResponse(&w)
 }
 
-
 // Release lock on ticket
 func ReleaseTicket(token string, incr bool) {
-    //fmt.Println("* ReleasingTicket")
     client := GetRedisClient()
 
     // see if token exists in Redis
@@ -170,27 +145,23 @@ func ReleaseTicket(token string, incr bool) {
     }
 
     // Remove token from purchase pool if it does
-    _, err2 := client.Del(token).Result()
-    if err2 != nil {
+    _, err = client.Del(token).Result()
+    if err != nil {
         fmt.Printf("Token delete failed for '%s'.", token)
         return;
     }
 
     if (incr) {
-        _, err3 := client.Incr("num_tickets").Result()
-        if err3 != nil {
-            panic(err3)
-        }
+        _, err = client.Incr("num_tickets").Result()
+        if err != nil { log.Fatal(err) }
     }
 }
-
 
 func main() {
     ResetDB()
     InitializeTickets()
 
     router := mux.NewRouter()
-
     router.HandleFunc("/remaining_tickets", GetRemainingTickets).Methods("GET")
     router.HandleFunc("/buy_ticket/{type}", LockTicket).Methods("POST")
     router.HandleFunc("/complete_purchase/{token}", CompleteTicketPurchase).Methods("POST")
