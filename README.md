@@ -4,10 +4,13 @@ Application to process a high volume of requests to purchase tickets to events.
 
 Application locks a ticket for purchase, and then allows a user to complete the ticket purchase in a time frame. If the user fails to complete the ticket purchase, then the ticket is released back into the pool.
 
-## Dependencies
+## Dependency Commands
 
-    github.com/gorilla/mux
-    github.com/go-redis/redis
+Run these commands to install project dependencies.
+
+    go get github.com/gorilla/mux
+    go get github.com/go-redis/redis
+    go get github.com/micro/go-config
 
 
 ## API
