@@ -4,7 +4,6 @@ import (
     "fmt"
     "github.com/go-redis/redis"
     "github.com/micro/go-config"
-    //"os"
 )
 
 var GlobalRedisClient *redis.Client = nil
