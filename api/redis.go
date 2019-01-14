@@ -10,7 +10,7 @@ var GlobalRedisClient *redis.Client = nil
 
 func GetRedisConfig() (Addr, Password string, DB int) {
     config.LoadFile("config.json")
-    return config.Get("redis", "Addr").String("localhost:6379"), // default value
+    return config.Get("redis", "Addr").String("localhost:6379"), // localhost:6379 default value
            config.Get("redis", "Password").String(""),
            config.Get("redis", "Addr").Int(0)
 }
