@@ -19,17 +19,17 @@ Run these commands to install project dependencies.
 
 Any Redis server can be used, but for testing, it's easiest to set up a local version. Take a look at [this link](https://redis.io/topics/quickstart) for a quick local setup on Linux. Redis configuration can be setup in `api/config.json`.
 
-## API
+## REST API Endpoints
 
-Get the remaining ticket count.
+Get the remaining ticket count. Method: `GET`:
 
     /remaining_tickets
 
-Begin purchase of a ticket. Type can be on the strings: `GA`, `VIP`, or `ONE_DAY`.
+Begin purchase of a ticket. Type can be on the strings: `GA`, `VIP`, or `ONE_DAY`. Method: `POST`:
 
     /buy_ticket/{type}
 
-Complete purchase of a ticket. Token is the token received from the /buy_ticket endpoint.
+Complete purchase of a ticket. Token is the token received from the /buy_ticket endpoint. Method: `POST`:
 
     /complete_purchase/{token}
 
