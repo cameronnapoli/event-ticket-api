@@ -4,6 +4,8 @@ import (
     "fmt"
     "github.com/go-redis/redis"
     "github.com/micro/go-config"
+    "log"
+    "strconv"
 )
 
 var GlobalRedisClient *redis.Client = nil
@@ -21,6 +23,20 @@ func GetRedisClient() *redis.Client {
         GlobalRedisClient = redis.NewClient(&redis.Options{Addr: Addr, Password: Password, DB: DB})
     }
     return GlobalRedisClient
+}
+
+func GetNumTickets(client *redis.Client) int {
+    numTickets, err := client.Get("num_tickets").Result()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    intNumTickets, err := strconv.Atoi(numTickets)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    return intNumTickets
 }
 
 func ResetDB()  {

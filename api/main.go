@@ -23,8 +23,8 @@ Features:
 
 // Create JSON key in Redis DB with initialized ticket count
 func InitializeTickets() {
-    // Set num_tickets in Redis to INITIAL_TICKET_COUNT
     client := GetRedisClient()
+
     err := client.Set("num_tickets", INITIAL_TICKET_COUNT, 0).Err()
     if err != nil {
         log.Fatal(err)
@@ -35,13 +35,12 @@ func InitializeTickets() {
 func GetRemainingTickets(w http.ResponseWriter, r *http.Request) {
     client := GetRedisClient()
 
-    val, err := client.Get("num_tickets").Result()
+    numTickets, err := client.Get("num_tickets").Result()
     if err != nil {
         log.Fatal(err)
     }
 
-    w.WriteHeader(http.StatusOK)
-    fmt.Fprintf(w, `{"num_tickets": %s}`, val)
+    WriteNumTicketsResponse(&w, numTickets)
 }
 
 // Create lock on ticket to allow purchasing period
@@ -56,23 +55,13 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
     }
 
     ticketType, _ := params["type"]
-    tVal := CheckTicketType(ticketType)
-    if tVal < 0 {
+    ticketIntVal := CheckTicketType(ticketType)
+    if ticketIntVal < 0 {
         WriteErrorResponse(&w, "ticket type is invalid.")
         return
     }
 
-    // Redis query to get ticket count
-    numTickets, err := client.Get("num_tickets").Result()
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    var intNumTickets int
-    intNumTickets, err = strconv.Atoi(numTickets)
-    if err != nil {
-        log.Fatal(err)
-    }
+    intNumTickets := GetNumTickets(client)
 
     if intNumTickets == 0 {
         WriteErrorResponse(&w, "No tickets remaining.")
@@ -81,9 +70,9 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
         log.Fatal("number of tickets in redis < 0. Something went very wrong.")
     }
 
-    // Store token in Redis
+    // Generate token and store in Redis
     token := generateToken()
-    err = client.Set(token, tVal, 0).Err()
+    err := client.Set(token, ticketIntVal, 0).Err()
     if err != nil {
         log.Fatal(err)
     }
@@ -94,8 +83,7 @@ func LockTicket(w http.ResponseWriter, r *http.Request) {
         log.Fatal(err)
     }
 
-    w.WriteHeader(http.StatusOK)
-    fmt.Fprintf(w, `{"process": "success", "token": %s}`, token)
+    WriteTokenResponse(&w, token)
 
     doneChan := make(chan bool)
     go func() {
@@ -128,15 +116,14 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    var ticketTypeVal int
-    ticketTypeVal, err = strconv.Atoi(ticketType)
+    ticketTypeVal, err := strconv.Atoi(ticketType)
     if err != nil {
         log.Fatal(err)
     }
 
-    tp := &TicketPaymentPayload{UserToken: token,
-        TicketType:   ticketTypeVal,
-        PaymentToken: ""} // PaymentToken: paymentToken}
+    tp := &TicketPaymentPayload{UserToken:    token,
+                                TicketType:   ticketTypeVal,
+                                PaymentToken: ""} // PaymentToken: paymentToken}
     // if it does add to second completed purchases table with token, ticketType
     err = client.SAdd("purchases", payloadToJson(tp), 0).Err()
     if err != nil {
@@ -148,7 +135,7 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
 }
 
 // Release lock on ticket
-func ReleaseTicket(token string, incr bool) {
+func ReleaseTicket(token string, incrTicketCount bool) {
     client := GetRedisClient()
 
     // see if token exists in Redis
@@ -165,7 +152,7 @@ func ReleaseTicket(token string, incr bool) {
         return
     }
 
-    if incr {
+    if incrTicketCount {
         _, err = client.Incr("num_tickets").Result()
         if err != nil {
             log.Fatal(err)
