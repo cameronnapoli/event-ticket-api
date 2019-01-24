@@ -131,7 +131,7 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
     }
 
     ReleaseTicket(token, false)
-    BasicSuccessResponse(&w)
+    WriteSuccessResponse(&w)
 }
 
 // Release lock on ticket

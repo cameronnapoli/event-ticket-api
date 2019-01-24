@@ -5,7 +5,7 @@ import (
     "net/http"
 )
 
-func BasicSuccessResponse(w *http.ResponseWriter) {
+func WriteSuccessResponse(w *http.ResponseWriter) {
     (*w).WriteHeader(http.StatusOK)
     fmt.Fprintf(*w, `{"success": true}`)
 }
