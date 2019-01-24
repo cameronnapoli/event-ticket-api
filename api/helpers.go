@@ -31,19 +31,19 @@ type TicketPaymentPayload struct {
 
 //================ HELPERS ================
 func payloadToJson(tp *TicketPaymentPayload) string {
-    s, err := json.Marshal(tp)
+    jsonStr, err := json.Marshal(tp)
     if err != nil {
         panic(err)
     }
-    return string(s)
+    return string(jsonStr)
 }
 
 func concatStrings(strs... string) string {
-    var b bytes.Buffer
+    var buf bytes.Buffer
     for _, s := range strs {
-        b.WriteString(s)
+        buf.WriteString(s)
     }
-    return b.String()
+    return buf.String()
 }
 
 func generateToken() string {
@@ -53,6 +53,7 @@ func generateToken() string {
     byteArray := make([]byte, 8)
     binary.LittleEndian.PutUint64(byteArray, uint64(genToken))
     sum := sha1.Sum(byteArray)
+
     return hex.EncodeToString(sum[:])
 }
 
