@@ -12,7 +12,7 @@ Run these commands to install project dependencies.
 
     go get github.com/gorilla/mux
     go get github.com/go-redis/redis
-    go get github.com/micro/go-config
+    go get github.com/go-sql-driver/mysql
 
 
 ## Redis

@@ -1,7 +1,13 @@
 {
   "redis" : {
-    "Addr": "localhost:6379",
-    "Password": "",
-    "DB": 0
+    "address": "localhost:6379",
+    "password": "",
+    "database": 0
+  },
+  "mysql": {
+  	"address": "localhost",
+  	"username": "admin",
+  	"password": "password",
+  	"database": "Tickets"
   }
 }
