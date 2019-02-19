@@ -19,7 +19,7 @@ Features:
     - Lock ticket purchase in for user on IP (Max number of users per IP)
     - Process user token, ticket type, and "payment"
     - Display how many tickets remain (open, purchasing, purchased)
-*
+*/
 
 // Create JSON key in Redis DB with initialized ticket count
 func InitializeTickets() {
