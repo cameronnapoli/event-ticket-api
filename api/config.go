@@ -21,7 +21,7 @@ type Configuration struct {
 }
 
 func GetConfigObject() Configuration {
-	file, err := os.Open("config.json")
+	file, err := os.Open("./config/config.json")
 	if err != nil {
 		log.Fatal("Can't open config file: ", err)
 	}
