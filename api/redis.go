@@ -36,7 +36,7 @@ func GetNumTickets(client *redis.Client) int {
     return intNumTickets
 }
 
-func ResetDB()  {
+func ResetDB() {
     client := GetRedisClient()
     _, err := client.FlushAll().Result()
     if err != nil {

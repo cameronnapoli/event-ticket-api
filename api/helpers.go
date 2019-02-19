@@ -38,7 +38,7 @@ func payloadToJson(tp *TicketPaymentPayload) string {
     return string(jsonStr)
 }
 
-func concatStrings(strs... string) string {
+func concatStrings(strs ...string) string {
     var buf bytes.Buffer
     for _, s := range strs {
         buf.WriteString(s)
@@ -57,7 +57,7 @@ func generateToken() string {
     return hex.EncodeToString(sum[:])
 }
 
-func CheckArgsInParams(params map[string]string, reqArgs... string) error {
+func CheckArgsInParams(params map[string]string, reqArgs ...string) error {
     for _, reqArg := range reqArgs {
         if _, ok := params[reqArg]; !ok {
             return errors.New("Argument missing from request.")
@@ -68,13 +68,13 @@ func CheckArgsInParams(params map[string]string, reqArgs... string) error {
 
 func CheckTicketType(ticketType string) int {
     switch ticketType {
-        case TICKET_GA:
-            return 0
-        case TICKET_VIP:
-            return 1
-        case TICKET_ONE_DAY:
-            return 2
-        default:
-            return -1
+    case TICKET_GA:
+        return 0
+    case TICKET_VIP:
+        return 1
+    case TICKET_ONE_DAY:
+        return 2
+    default:
+        return -1
     }
 }

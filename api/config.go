@@ -40,15 +40,15 @@ func GetConfigObject() Configuration {
 
 func GetSQLConfig() (address, username, password, database string) {
 	Config := GetConfigObject()
-    return Config.Mysql.Address,
-		   Config.Mysql.Username,
-		   Config.Mysql.Password,
-		   Config.Mysql.Database
+	return Config.Mysql.Address,
+		Config.Mysql.Username,
+		Config.Mysql.Password,
+		Config.Mysql.Database
 }
 
 func GetRedisConfig() (Addr, Password string, DB int) {
 	Config := GetConfigObject()
 	return Config.Redis.Address,
-		   Config.Redis.Password,
-		   Config.Redis.Database
+		Config.Redis.Password,
+		Config.Redis.Database
 }

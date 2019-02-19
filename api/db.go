@@ -1,22 +1,22 @@
 package main
 
 import (
-	"log"
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
+	"log"
 )
 
 func SaveTicketToDB(ticketType, email string) {
 	address, username, password, database := GetSQLConfig()
 
 	connectionString := concatStrings(
-		username, ":", password, 
+		username, ":", password,
 		"@(", address, ")/", database,
 	)
 	db, err := sql.Open("mysql", connectionString)
 	if err != nil {
 		log.Printf("Cannot connect to SQL server at address: '%s'", address)
-        log.Fatal(err)
+		log.Fatal(err)
 	}
 
 	sqlInsert := "INSERT INTO SoldTickets (ticketType, email) VALUES(?, ?)"

@@ -19,7 +19,7 @@ Features:
     - Lock ticket purchase in for user on IP (Max number of users per IP)
     - Process user token, ticket type, and "payment"
     - Display how many tickets remain (open, purchasing, purchased)
-*/
+*
 
 // Create JSON key in Redis DB with initialized ticket count
 func InitializeTickets() {
@@ -121,9 +121,9 @@ func CompleteTicketPurchase(w http.ResponseWriter, r *http.Request) {
         log.Fatal(err)
     }
 
-    tp := &TicketPaymentPayload{UserToken:    token,
-                                TicketType:   ticketTypeVal,
-                                PaymentToken: ""} // PaymentToken: paymentToken}
+    tp := &TicketPaymentPayload{UserToken: token,
+        TicketType:   ticketTypeVal,
+        PaymentToken: ""} // PaymentToken: paymentToken}
     // if it does add to second completed purchases table with token, ticketType
     err = client.SAdd("purchases", payloadToJson(tp), 0).Err()
     if err != nil {
