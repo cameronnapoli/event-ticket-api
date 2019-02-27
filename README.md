@@ -1,4 +1,4 @@
-# High Volume Ticket Purchasing
+# High Volume Event Ticket Purchasing
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://travis-ci.org/cameronnapoli/high_load_ticket_api.svg?branch=master)](https://travis-ci.org/cameronnapoli/high_load_ticket_api)
