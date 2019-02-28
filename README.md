@@ -1,7 +1,7 @@
 # High Volume Event Ticket Purchasing
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://travis-ci.org/cameronnapoli/high_load_ticket_api.svg?branch=master)](https://travis-ci.org/cameronnapoli/high_load_ticket_api)
+[![Build Status](https://travis-ci.org/cameronnapoli/event-ticket-api.svg?branch=master)](https://travis-ci.org/cameronnapoli/event-ticket-api)
 
 Application to process a high volume of requests to purchase tickets to events.
 
